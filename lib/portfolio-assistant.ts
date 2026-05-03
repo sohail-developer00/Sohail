@@ -24,6 +24,8 @@ export type DeterministicAssistantReply = {
   suggestions: string[];
 };
 
+type ResponseLanguage = "english" | "hinglish" | "hindi";
+
 export const assistantQuickReplies = [
   "What services do you offer?",
   "Show your best projects",
@@ -133,10 +135,10 @@ const contactDetails = {
 };
 
 const pricing = {
-  basicWebsite: "₹2,000 - ₹3,000",
-  businessWebsite: "₹3,000 - ₹4,000",
-  mobileApp: "₹7,000 - ₹8,000",
-  aiAutomation: "₹10,000 - ₹12,000",
+  basicWebsite: "Rs 2,000 - 3,000",
+  businessWebsite: "Rs 3,000 - 4,000",
+  mobileApp: "Rs 7,000 - 8,000",
+  aiAutomation: "Rs 10,000 - 12,000",
 };
 
 const pricingNumbers = {
@@ -145,6 +147,37 @@ const pricingNumbers = {
   mobileApp: { min: 7000, max: 8000 },
   aiAutomation: { min: 10000, max: 12000 },
 };
+
+const hinglishTerms = [
+  "hai",
+  "haan",
+  "nahi",
+  "nahin",
+  "bhai",
+  "mujhe",
+  "mujhko",
+  "mera",
+  "meri",
+  "mere",
+  "kitna",
+  "kitne",
+  "lagega",
+  "banana",
+  "banwana",
+  "banwani",
+  "jaisa",
+  "kaisa",
+  "karna",
+  "karwana",
+  "chahiye",
+  "chahiye?",
+  "kar sakte",
+  "karoge",
+  "paisa",
+  "kharcha",
+  "batao",
+  "samjha",
+];
 
 function normalise(text: string) {
   return text.toLowerCase().trim();
@@ -161,6 +194,20 @@ function keywordScore(haystack: string, query: string) {
 
 function containsAny(text: string, terms: string[]) {
   return terms.some((term) => text.includes(term));
+}
+
+function detectResponseLanguage(query: string): ResponseLanguage {
+  const normalized = normalise(query);
+
+  if (/[\u0900-\u097F]/.test(query)) {
+    return "hindi";
+  }
+
+  if (containsAny(normalized, hinglishTerms)) {
+    return "hinglish";
+  }
+
+  return "english";
 }
 
 export function isProjectIntent(query: string) {
@@ -192,15 +239,42 @@ export function isPricingIntent(query: string) {
     "quote",
     "charges",
     "how much",
+    "paisa",
+    "paise",
+    "kharcha",
+    "kitna",
+    "kitne",
+    "lagega",
+    "banwane ka",
+    "banwana",
+    "banwani",
   ]);
 }
 
 function formatInr(value: number) {
-  return `₹${value.toLocaleString("en-IN")}`;
+  return `Rs ${value.toLocaleString("en-IN")}`;
+}
+
+function localizeSuggestions(
+  language: ResponseLanguage,
+  english: string[],
+  hinglish: string[],
+  hindi: string[],
+) {
+  if (language === "hindi") {
+    return hindi;
+  }
+
+  if (language === "hinglish") {
+    return hinglish;
+  }
+
+  return english;
 }
 
 function buildPricingReply(query: string) {
   const normalized = normalise(query);
+  const language = detectResponseLanguage(query);
   const mentionsWebsite = containsAny(normalized, [
     "website",
     "site",
@@ -210,13 +284,61 @@ function buildPricingReply(query: string) {
   ]);
   const mentionsApp = containsAny(normalized, ["app", "mobile app", "application"]);
   const mentionsAi = containsAny(normalized, ["ai", "automation", "chatbot"]);
+  const mentionsComplexity = containsAny(normalized, [
+    "mvp",
+    "advanced",
+    "custom",
+    "complex",
+    "feature",
+    "features",
+    "similar",
+    "like",
+    "jaisa",
+    "pocketfm",
+    "spotify",
+    "netflix",
+    "admin panel",
+    "dashboard",
+  ]);
 
   if (mentionsWebsite && mentionsApp) {
     const min = pricingNumbers.basicWebsite.min + pricingNumbers.mobileApp.min;
     const max = pricingNumbers.businessWebsite.max + pricingNumbers.mobileApp.max;
 
+    if (language === "hinglish") {
+      return {
+        message: `1 website aur 1 app ke liye rough range around ${formatInr(min)} - ${formatInr(max)} rahegi. Exact bundled scope ya discount ke liye Sohail se directly WhatsApp par baat kar sakte ho.`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [
+            "Mujhe basic website aur app chahiye",
+            "Mujhe business website aur app chahiye",
+            "WhatsApp par bundled pricing discuss karni hai",
+          ],
+          [],
+        ),
+      };
+    }
+
+    if (language === "hindi") {
+      return {
+        message: `1 वेबसाइट और 1 ऐप के लिए लगभग ${formatInr(min)} - ${formatInr(max)} तक का रेंज रह सकता है। सही bundled scope या discount के लिए Sohail से सीधे WhatsApp पर बात करना बेहतर रहेगा।`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [],
+          [
+            "मुझे basic website और app चाहिए",
+            "मुझे business website और app चाहिए",
+            "WhatsApp पर bundled pricing discuss करनी है",
+          ],
+        ),
+      };
+    }
+
     return {
-      message: `For 1 website and 1 app together, a practical rough range would usually be around ${formatInr(min)} - ${formatInr(max)} depending on features, design quality, and timeline. If you want, Sohail can discuss the final scope, bundled pricing, or any discount on WhatsApp.`,
+      message: `For 1 website and 1 app together, a practical rough range would usually be around ${formatInr(min)} - ${formatInr(max)}. For exact bundled scope or any discount discussion, it is best to connect with Sohail on WhatsApp.`,
       suggestions: [
         "I need a basic website and app",
         "I need a business website and app",
@@ -229,8 +351,40 @@ function buildPricingReply(query: string) {
     const min = pricingNumbers.basicWebsite.min + pricingNumbers.aiAutomation.min;
     const max = pricingNumbers.businessWebsite.max + pricingNumbers.aiAutomation.max;
 
+    if (language === "hinglish") {
+      return {
+        message: `Website plus AI automation ke liye rough range around ${formatInr(min)} - ${formatInr(max)} rahegi. Agar workflow zyada custom hai to exact scope WhatsApp par discuss karna better rahega.`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [
+            "Mujhe website ke sath chatbot chahiye",
+            "Mujhe AI automation bhi chahiye",
+            "Exact scope WhatsApp par discuss karni hai",
+          ],
+          [],
+        ),
+      };
+    }
+
+    if (language === "hindi") {
+      return {
+        message: `Website plus AI automation के लिए लगभग ${formatInr(min)} - ${formatInr(max)} तक का रेंज रह सकता है। अगर workflow ज्यादा custom है तो exact scope WhatsApp पर discuss करना बेहतर रहेगा।`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [],
+          [
+            "मुझे website के साथ chatbot चाहिए",
+            "मुझे AI automation भी चाहिए",
+            "Exact scope WhatsApp पर discuss करनी है",
+          ],
+        ),
+      };
+    }
+
     return {
-      message: `For a website plus AI automation, a rough combined range would usually be around ${formatInr(min)} - ${formatInr(max)} depending on the workflow and features needed. For exact scope or discount discussion, it’s best to connect with Sohail on WhatsApp.`,
+      message: `For a website plus AI automation, a rough combined range would usually be around ${formatInr(min)} - ${formatInr(max)}. If the workflow is more custom, it is best to discuss the exact scope directly with Sohail on WhatsApp.`,
       suggestions: [
         "I need a website with chatbot",
         "I need AI automation too",
@@ -240,8 +394,83 @@ function buildPricingReply(query: string) {
   }
 
   if (mentionsApp) {
+    if (mentionsComplexity) {
+      if (language === "hinglish") {
+        return {
+          message: `Aise app ke liye safe rough range around ${formatInr(pricingNumbers.mobileApp.min)} - ${formatInr(20000)} reh sakti hai, features, screens aur backend work par depend karega. Exact app scope ke liye Sohail se directly WhatsApp par baat kar sakte ho.`,
+          suggestions: localizeSuggestions(
+            language,
+            [],
+            [
+              "Mujhe simple MVP app chahiye",
+              "Mujhe backend wala app chahiye",
+              "App scope WhatsApp par discuss karni hai",
+            ],
+            [],
+          ),
+        };
+      }
+
+      if (language === "hindi") {
+        return {
+          message: `ऐसे app के लिए safe rough range लगभग ${formatInr(pricingNumbers.mobileApp.min)} - ${formatInr(20000)} तक रह सकती है। यह features, screens और backend work पर depend करेगा। Exact app scope के लिए Sohail से सीधे WhatsApp पर बात कर सकते हैं।`,
+          suggestions: localizeSuggestions(
+            language,
+            [],
+            [],
+            [
+              "मुझे simple MVP app चाहिए",
+              "मुझे backend वाला app चाहिए",
+              "App scope WhatsApp पर discuss करनी है",
+            ],
+          ),
+        };
+      }
+
+      return {
+        message: `For an app like that, a safe rough range would usually be around ${formatInr(pricingNumbers.mobileApp.min)} - ${formatInr(20000)} depending on features, screens, and backend work. For the exact app scope, it is better to discuss directly with Sohail on WhatsApp.`,
+        suggestions: [
+          "I need a simple MVP app",
+          "I need app with backend too",
+          "Can we discuss app scope on WhatsApp?",
+        ],
+      };
+    }
+
+    if (language === "hinglish") {
+      return {
+        message: `1 mobile app ka usual range around ${pricing.mobileApp} rahega. Agar app me thode extra features honge to price thoda upar ja sakta hai, but exact scope ke liye Sohail se directly WhatsApp par baat karna best rahega.`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [
+            "Mujhe basic MVP app chahiye",
+            "Mujhe app design bhi chahiye",
+            "App scope WhatsApp par discuss karni hai",
+          ],
+          [],
+        ),
+      };
+    }
+
+    if (language === "hindi") {
+      return {
+        message: `1 mobile app का usual range लगभग ${pricing.mobileApp} रहेगा। अगर app में थोड़े extra features होंगे तो price थोड़ा ऊपर जा सकता है, लेकिन exact scope के लिए Sohail से सीधे WhatsApp पर बात करना बेहतर रहेगा।`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [],
+          [
+            "मुझे basic MVP app चाहिए",
+            "मुझे app design भी चाहिए",
+            "App scope WhatsApp पर discuss करनी है",
+          ],
+        ),
+      };
+    }
+
     return {
-      message: `For one mobile app, the usual range is around ${pricing.mobileApp}. Final pricing depends on screens, backend/API work, and app features. For exact scope or discount discussion, it’s best to connect with Sohail on WhatsApp.`,
+      message: `For one mobile app, the usual range is around ${pricing.mobileApp}. If the app needs a few more features, the price can go a bit higher, but for exact scope it is best to discuss directly with Sohail on WhatsApp.`,
       suggestions: [
         "I need a basic MVP app",
         "I need app design too",
@@ -251,8 +480,83 @@ function buildPricingReply(query: string) {
   }
 
   if (mentionsAi) {
+    if (mentionsComplexity) {
+      if (language === "hinglish") {
+        return {
+          message: `Custom AI feature ya automation setup ke liye practical range usually ${pricing.aiAutomation} ke around rahegi aur zyada detailed workflow ho to about ${formatInr(20000)} tak ja sakti hai. Exact scope ke liye Sohail se WhatsApp par direct baat karna better rahega.`,
+          suggestions: localizeSuggestions(
+            language,
+            [],
+            [
+              "Mujhe AI chatbot chahiye",
+              "Mujhe AI automation chahiye",
+              "AI scope WhatsApp par discuss karni hai",
+            ],
+            [],
+          ),
+        };
+      }
+
+      if (language === "hindi") {
+        return {
+          message: `Custom AI feature या automation setup के लिए practical range usually ${pricing.aiAutomation} के around रहेगी और workflow ज्यादा detailed हो तो about ${formatInr(20000)} तक जा सकती है। Exact scope के लिए Sohail से WhatsApp पर direct बात करना बेहतर रहेगा।`,
+          suggestions: localizeSuggestions(
+            language,
+            [],
+            [],
+            [
+              "मुझे AI chatbot चाहिए",
+              "मुझे AI automation चाहिए",
+              "AI scope WhatsApp पर discuss करनी है",
+            ],
+          ),
+        };
+      }
+
+      return {
+        message: `For a custom AI feature or automation setup, a practical range would usually be around ${pricing.aiAutomation} and can go up to about ${formatInr(20000)} if the workflow is more detailed. If you are planning something specific, it is best to discuss the scope directly with Sohail on WhatsApp.`,
+        suggestions: [
+          "I need an AI chatbot",
+          "I need AI automation",
+          "Can we discuss AI scope on WhatsApp?",
+        ],
+      };
+    }
+
+    if (language === "hinglish") {
+      return {
+        message: `AI automation ya custom AI feature ka usual range around ${pricing.aiAutomation} rahega. Exact scope ya discount ke liye Sohail se WhatsApp par baat karna best rahega.`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [
+            "Mujhe AI automation chahiye",
+            "Mujhe AI chatbot chahiye",
+            "AI scope WhatsApp par discuss karni hai",
+          ],
+          [],
+        ),
+      };
+    }
+
+    if (language === "hindi") {
+      return {
+        message: `AI automation या custom AI feature का usual range लगभग ${pricing.aiAutomation} रहेगा। Exact scope या discount के लिए Sohail से WhatsApp पर बात करना बेहतर रहेगा।`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [],
+          [
+            "मुझे AI automation चाहिए",
+            "मुझे AI chatbot चाहिए",
+            "AI scope WhatsApp पर discuss करनी है",
+          ],
+        ),
+      };
+    }
+
     return {
-      message: `For AI automation or a custom AI feature, the usual range is around ${pricing.aiAutomation}. Final pricing depends on workflow complexity, integrations, and UI scope. For exact scope or discount discussion, it’s best to connect with Sohail on WhatsApp.`,
+      message: `For AI automation or a custom AI feature, the usual range is around ${pricing.aiAutomation}. For exact scope or discount discussion, it is best to connect with Sohail on WhatsApp.`,
       suggestions: [
         "I need AI automation",
         "I need an AI chatbot",
@@ -262,8 +566,83 @@ function buildPricingReply(query: string) {
   }
 
   if (mentionsWebsite) {
+    if (mentionsComplexity) {
+      if (language === "hinglish") {
+        return {
+          message: `Custom website with extra features ke liye practical range usually ${pricing.basicWebsite} se ${formatInr(12000)} tak rahegi, pages, design aur functionality par depend karega. Exact pricing ke liye Sohail se directly WhatsApp par baat kar sakte ho.`,
+          suggestions: localizeSuggestions(
+            language,
+            [],
+            [
+              "Mujhe basic website chahiye",
+              "Mujhe business website chahiye",
+              "Website scope WhatsApp par discuss karni hai",
+            ],
+            [],
+          ),
+        };
+      }
+
+      if (language === "hindi") {
+        return {
+          message: `Extra features वाली custom website के लिए practical range usually ${pricing.basicWebsite} से ${formatInr(12000)} तक रह सकती है। यह pages, design और functionality पर depend करेगा। Exact pricing के लिए Sohail से सीधे WhatsApp पर बात कर सकते हैं।`,
+          suggestions: localizeSuggestions(
+            language,
+            [],
+            [],
+            [
+              "मुझे basic website चाहिए",
+              "मुझे business website चाहिए",
+              "Website scope WhatsApp पर discuss करनी है",
+            ],
+          ),
+        };
+      }
+
+      return {
+        message: `For a custom website with extra features, a practical range would usually be around ${pricing.basicWebsite} to ${formatInr(12000)} depending on pages, design, and functionality. For exact pricing, it is best to discuss directly with Sohail on WhatsApp.`,
+        suggestions: [
+          "I need a basic website",
+          "I need a business website",
+          "Can we discuss website scope on WhatsApp?",
+        ],
+      };
+    }
+
+    if (language === "hinglish") {
+      return {
+        message: `Basic website usually ${pricing.basicWebsite} se start hoti hai. Thodi zyada polished business website ka range usually ${pricing.businessWebsite} rehta hai. Exact scope ya discount ke liye Sohail se WhatsApp par baat karna best rahega.`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [
+            "Mujhe basic website chahiye",
+            "Mujhe business website chahiye",
+            "Scope WhatsApp par discuss karni hai",
+          ],
+          [],
+        ),
+      };
+    }
+
+    if (language === "hindi") {
+      return {
+        message: `Basic website usually ${pricing.basicWebsite} से start होती है। थोड़ी ज्यादा polished business website का range usually ${pricing.businessWebsite} रहता है। Exact scope या discount के लिए Sohail से WhatsApp पर बात करना बेहतर रहेगा।`,
+        suggestions: localizeSuggestions(
+          language,
+          [],
+          [],
+          [
+            "मुझे basic website चाहिए",
+            "मुझे business website चाहिए",
+            "Scope WhatsApp पर discuss करनी है",
+          ],
+        ),
+      };
+    }
+
     return {
-      message: `A basic website usually starts around ${pricing.basicWebsite}. A more polished business website typically falls in the ${pricing.businessWebsite} range. For exact scope or discount discussion, it’s best to connect with Sohail on WhatsApp.`,
+      message: `A basic website usually starts around ${pricing.basicWebsite}. A more polished business website typically falls in the ${pricing.businessWebsite} range. For exact scope or discount discussion, it is best to connect with Sohail on WhatsApp.`,
       suggestions: [
         "I need a basic website",
         "I need a business website",
@@ -272,8 +651,40 @@ function buildPricingReply(query: string) {
     };
   }
 
+  if (language === "hinglish") {
+    return {
+      message: `Website projects usually ${pricing.basicWebsite} se start hote hain, business websites around ${pricing.businessWebsite}, mobile apps around ${pricing.mobileApp}, aur AI automation around ${pricing.aiAutomation}. Agar requirement zyada custom hai aur exact price clear nahi hai, to scope directly Sohail se WhatsApp par discuss karna best rahega.`,
+      suggestions: localizeSuggestions(
+        language,
+        [],
+        [
+          "Mujhe website chahiye",
+          "Mujhe app chahiye",
+          "Mujhe website aur app dono chahiye",
+        ],
+        [],
+      ),
+    };
+  }
+
+  if (language === "hindi") {
+    return {
+      message: `Website projects usually ${pricing.basicWebsite} से start होते हैं, business websites around ${pricing.businessWebsite}, mobile apps around ${pricing.mobileApp}, और AI automation around ${pricing.aiAutomation}. अगर requirement ज्यादा custom है और exact price clear नहीं है, तो scope directly Sohail से WhatsApp पर discuss करना बेहतर रहेगा।`,
+      suggestions: localizeSuggestions(
+        language,
+        [],
+        [],
+        [
+          "मुझे website चाहिए",
+          "मुझे app चाहिए",
+          "मुझे website और app दोनों चाहिए",
+        ],
+      ),
+    };
+  }
+
   return {
-    message: `Website projects usually start around ${pricing.basicWebsite}, business websites around ${pricing.businessWebsite}, mobile apps around ${pricing.mobileApp}, and AI automation around ${pricing.aiAutomation}. If you want, Sohail can discuss the exact scope and best package on WhatsApp.`,
+    message: `Website projects usually start around ${pricing.basicWebsite}, business websites around ${pricing.businessWebsite}, mobile apps around ${pricing.mobileApp}, and AI automation around ${pricing.aiAutomation}. If the requirement is more custom and the exact price is not clear yet, it is best to discuss the scope directly with Sohail on WhatsApp.`,
     suggestions: [
       "I need a website",
       "I need an app",
@@ -336,44 +747,110 @@ function formatRelevantProjects(query: string) {
 
 function getSuggestionSet(query: string) {
   const normalized = normalise(query);
+  const language = detectResponseLanguage(query);
 
   if (isPricingIntent(query)) {
-    return [
-      "Do you need a basic website or a business website?",
-      "Do you already have design/content ready?",
-      "Would you like to discuss discount or scope on WhatsApp?",
-    ];
+    return localizeSuggestions(
+      language,
+      [
+        "Do you need a basic website or a business website?",
+        "Do you already have design/content ready?",
+        "Would you like to discuss discount or scope on WhatsApp?",
+      ],
+      [
+        "Basic website chahiye ya business website?",
+        "Design/content ready hai ya usme bhi help chahiye?",
+        "Discount ya scope WhatsApp par discuss karni hai?",
+      ],
+      [
+        "Basic website चाहिए या business website?",
+        "Design/content ready है या उसमें भी help चाहिए?",
+        "Discount या scope WhatsApp पर discuss करनी है?",
+      ],
+    );
   }
 
   if (normalized.includes("hire") || normalized.includes("project")) {
-    return [
-      "What kind of project are you planning?",
-      "Do you already have a design or need help with that too?",
-      "What timeline are you working with?",
-    ];
+    return localizeSuggestions(
+      language,
+      [
+        "What kind of project are you planning?",
+        "Do you already have a design or need help with that too?",
+        "What timeline are you working with?",
+      ],
+      [
+        "Aap kis type ka project plan kar rahe ho?",
+        "Design ready hai ya usme bhi help chahiye?",
+        "Timeline kya sochi hai?",
+      ],
+      [
+        "आप किस type का project plan कर रहे हैं?",
+        "Design ready है या उसमें भी help चाहिए?",
+        "Timeline क्या सोची है?",
+      ],
+    );
   }
 
   if (normalized.includes("tech") || normalized.includes("stack")) {
-    return [
-      "Do you want frontend, backend, mobile, or AI stack details?",
-      "Would you like examples of projects built with these technologies?",
-      "Are you choosing a stack for a new product or improving an existing one?",
-    ];
+    return localizeSuggestions(
+      language,
+      [
+        "Do you want frontend, backend, mobile, or AI stack details?",
+        "Would you like examples of projects built with these technologies?",
+        "Are you choosing a stack for a new product or improving an existing one?",
+      ],
+      [
+        "Frontend, backend, mobile ya AI stack details chahiye?",
+        "In technologies se bane projects ke examples dekhne hain?",
+        "Naya product bana rahe ho ya existing improve kar rahe ho?",
+      ],
+      [
+        "Frontend, backend, mobile या AI stack details चाहिए?",
+        "इन technologies से बने projects के examples देखने हैं?",
+        "नया product बना रहे हैं या existing improve कर रहे हैं?",
+      ],
+    );
   }
 
   if (normalized.includes("project") || normalized.includes("work")) {
-    return [
-      "Would you like a web, app, or AI project example?",
-      "Do you want to see the business problem and outcome for a project?",
-      "Are you looking for something similar to build?",
-    ];
+    return localizeSuggestions(
+      language,
+      [
+        "Would you like a web, app, or AI project example?",
+        "Do you want to see the business problem and outcome for a project?",
+        "Are you looking for something similar to build?",
+      ],
+      [
+        "Web, app ya AI project example dekhna hai?",
+        "Project ka business problem aur outcome dekhna hai?",
+        "Aap kuchh similar build karwana chahte ho?",
+      ],
+      [
+        "Web, app या AI project example देखना है?",
+        "Project का business problem और outcome देखना है?",
+        "आप कुछ similar build करवाना चाहते हैं?",
+      ],
+    );
   }
 
-  return [
-    "What kind of project are you planning?",
-    "Would you like to explore services, projects, or tech stack first?",
-    "Do you already have a goal, budget, or timeline in mind?",
-  ];
+  return localizeSuggestions(
+    language,
+    [
+      "What kind of project are you planning?",
+      "Would you like to explore services, projects, or tech stack first?",
+      "Do you already have a goal, budget, or timeline in mind?",
+    ],
+    [
+      "Aap kis type ka project plan kar rahe ho?",
+      "Pehle services, projects ya tech stack dekhna chahoge?",
+      "Goal, budget ya timeline kuchh mind me hai?",
+    ],
+    [
+      "आप किस type का project plan कर रहे हैं?",
+      "पहले services, projects या tech stack देखना चाहेंगे?",
+      "Goal, budget या timeline कुछ mind में है?",
+    ],
+  );
 }
 
 export function getAssistantResponseMeta(userMessage: string): AssistantResponseMeta {
@@ -418,6 +895,8 @@ function formatRelevantServices(query: string) {
 }
 
 export function buildAssistantSystemPrompt(userMessage: string) {
+  const language = detectResponseLanguage(userMessage);
+
   return `You are a professional AI assistant for ${developerProfile.name}, a freelance developer portfolio website.
 
 Role:
@@ -431,19 +910,28 @@ Communication style:
 - Use short readable sections or bullets when useful.
 - Explain technical things simply for non-technical users.
 - Sound human and professional.
+- Mirror the user's language style exactly as much as possible.
+- If the user writes in English, reply in English.
+- If the user writes in Hindi using English letters, reply in the same Hinglish or WhatsApp style using English letters only.
+- If the user writes in Hindi script, reply in Hindi.
+- Keep numbers in normal digits like 2000, 7000, 12000.
+
+Current language mode for this reply: ${language}
 
 Conversion behavior:
 - Ask smart follow-up questions when needed.
 - Recommend the most relevant solution based on the visitor's goal.
 - Focus on business outcomes like speed, performance, UX, conversions, clarity, scalability, and delivery efficiency.
 - For simple pricing questions, answer briefly and directly using the available pricing ranges. Do not give long explanations unless the user asks for more detail.
+- Keep pricing conservative. Do not jump to large estimates. If the scope is unclear or custom, stay close to the listed pricing ranges and prefer asking to discuss exact scope directly instead of giving a high quote.
+- Avoid quoting more than about Rs 20,000 for a single custom item unless the exact pricing context clearly requires that total.
 - Encourage hiring gently, never push aggressively.
 - When the user shows serious intent around pricing, hiring, scope, or timeline, say you would love to help and ask for project details.
 - Then, only when appropriate, ask if they would like to share their name and email so the developer can reach out.
 
 Trust and boundaries:
 - Never invent fake experience or fake project outcomes beyond the provided portfolio context.
-- If something is not available in the context, say: "I don’t have that detail, but I can connect you directly with the developer."
+- If something is not available in the context, say: "I don't have that detail, but I can connect you directly with the developer."
 - Do not pressure or manipulate.
 
 Portfolio context:
@@ -481,7 +969,7 @@ Pricing ranges:
 When relevant, ask consultative questions like:
 - What kind of project are you planning?
 - Do you already have a design or do you need help with that too?
-- What’s your timeline?
+- What's your timeline?
 
 Always stay grounded in the provided portfolio context.`;
 }
