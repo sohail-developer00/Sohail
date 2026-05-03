@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
+import { PHASE_DEVELOPMENT_SERVER } from "next/constants";
 
-const nextConfig: NextConfig = {
-  /* config options here */
-};
+export default function nextConfig(phase: string): NextConfig {
+  if (phase === PHASE_DEVELOPMENT_SERVER) {
+    return {
+      allowedDevOrigins: ["localhost", "192.168.1.3", "192.168.1.4"],
+    };
+  }
 
-export default nextConfig;
+  return {
+    distDir: ".build-prod",
+  };
+}
