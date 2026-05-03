@@ -8,7 +8,5 @@ export default function nextConfig(phase: string): NextConfig {
     };
   }
 
-  return {
-    distDir: ".build-prod",
-  };
+  return {};
 }
