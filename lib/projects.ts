@@ -75,7 +75,7 @@ export const projects: Project[] = [
       { title: "Mobile-Focused Sections", image: "/projects/sc4.jpg" },
     ],
     links: [
-      { label: "Open Live Website", href: "https://www.google.com/search?q=aurum+clinic", external: true },
+      { label: "Open Live Website", href: "https://sohailai.vercel.app/", external: true },
     ],
     year: "2026",
   },
