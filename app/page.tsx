@@ -301,6 +301,35 @@ export default function Home() {
             <a href="#hero" className="text-sm font-semibold tracking-[0.24em] text-white">
               SOHAIL<span className="text-cyan-300">.AI</span>
             </a>
+            <div className="lg:hidden">
+              <details>
+                <summary className="flex list-none cursor-pointer items-center gap-2 rounded-full border border-white/12 bg-white/6 px-4 py-2 text-sm font-medium text-white/80 transition hover:border-cyan-300/30 hover:text-white">
+                  Menu
+                  <span className="text-cyan-200">+</span>
+                </summary>
+                <div className="fixed left-4 right-4 top-[5.75rem] rounded-[1.75rem] border border-white/12 bg-[linear-gradient(180deg,rgba(17,24,45,0.97),rgba(6,10,24,0.96))] p-4 shadow-[0_24px_80px_rgba(0,0,0,0.42)] backdrop-blur-xl">
+                  <div className="grid gap-2">
+                    {navLinks.map((link) => (
+                      <a
+                        key={link.href}
+                        href={link.href}
+                        className="rounded-2xl border border-white/8 bg-white/4 px-4 py-3 text-sm text-white/75 transition hover:border-cyan-300/25 hover:bg-cyan-400/8 hover:text-white"
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                  </div>
+                  <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="button-primary mt-4 !flex !w-full justify-center"
+                  >
+                    Let&apos;s Talk
+                  </a>
+                </div>
+              </details>
+            </div>
             <div className="hidden items-center gap-6 lg:flex">
               {navLinks.map((link) => (
                 <a
@@ -312,7 +341,12 @@ export default function Home() {
                 </a>
               ))}
             </div>
-            <a href={whatsappLink} target="_blank" rel="noreferrer" className="button-primary">
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noreferrer"
+              className="button-primary hidden !w-auto justify-center lg:inline-flex"
+            >
               Let&apos;s Talk
             </a>
           </nav>
