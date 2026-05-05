@@ -251,7 +251,7 @@ const contactMethods = [
     label: "Availability",
     value: "Open for freelance projects",
     href: whatsappLink,
-    accent: "New website, app, and AI builds for May",
+    accent: "New website, app, and AI builds for small businesses in India",
   },
 ];
 
