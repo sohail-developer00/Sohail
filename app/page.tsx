@@ -345,7 +345,7 @@ export default function Home() {
               href={whatsappLink}
               target="_blank"
               rel="noreferrer"
-              className="button-primary hidden !w-auto justify-center lg:inline-flex"
+              className="button-primary !hidden !w-auto justify-center lg:!inline-flex"
             >
               Let&apos;s Talk
             </a>
